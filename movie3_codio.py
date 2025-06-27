@@ -1,7 +1,7 @@
 import random
 import statistics
 from datetime import datetime
-from movie_storage import (
+from movie_storage_sql import (
     get_movies,
     add_movie_to_storage,
     delete_movie_from_storage,
