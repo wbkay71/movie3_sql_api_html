@@ -130,13 +130,13 @@ def extract_movie_info(api_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_movie_with_rating(title: str) -> Optional[Dict[str, Any]]:
     """
-    Convenience function to get movie data with year and rating.
+    Convenience function to get movie data with year, rating, and poster.
 
     Args:
         title (str): Movie title to search for
 
     Returns:
-        Optional[Dict]: Dictionary with title, year, and rating if found
+        Optional[Dict]: Dictionary with title, year, rating, and poster if found
     """
     api_data = fetch_movie_data(title)
 
@@ -148,7 +148,8 @@ def get_movie_with_rating(title: str) -> Optional[Dict[str, Any]]:
             return {
                 'title': movie_info['title'],
                 'year': movie_info['year'],
-                'rating': movie_info['rating']
+                'rating': movie_info['rating'],
+                'poster': movie_info['poster'] if movie_info['poster'] != 'N/A' else None
             }
         else:
             print(f"Incomplete data for '{title}'")
