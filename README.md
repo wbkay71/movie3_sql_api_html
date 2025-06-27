@@ -161,7 +161,7 @@ This project is part of a bootcamp assignment and is for educational purposes.
 
 ## Author
 
-[Your Name]
+WBK
 
 ## Acknowledgments
 
