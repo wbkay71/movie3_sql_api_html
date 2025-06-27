@@ -14,12 +14,13 @@ if not API_KEY:
 BASE_URL = "http://www.omdbapi.com/"
 
 
-def fetch_movie_data(title: str) -> Optional[Dict[str, Any]]:
+def fetch_movie_data(title: str, year: str = None) -> Optional[Dict[str, Any]]:
     """
-    Fetch movie data from OMDb API by title.
+    Fetch movie data from OMDb API by title and optionally year.
 
     Args:
         title (str): The movie title to search for
+        year (str): Optional year to get specific version
 
     Returns:
         Optional[Dict]: Movie data if found, None otherwise
@@ -28,8 +29,12 @@ def fetch_movie_data(title: str) -> Optional[Dict[str, Any]]:
     params = {
         'apikey': API_KEY,
         't': title,  # 't' parameter searches by exact title
-        'type': 'movie'  # Only search for movies, not TV series
+        'type': 'movie'
     }
+
+    # Add year if provided to get specific version
+    if year:
+        params['y'] = year
 
     try:
         # Make the API request
@@ -112,6 +117,12 @@ def extract_movie_info(api_data: Dict[str, Any]) -> Dict[str, Any]:
     except (ValueError, TypeError):
         rating = None
 
+    # Extract and fix poster URL
+    poster_url = api_data.get('Poster', 'N/A')
+    if poster_url and poster_url != 'N/A':
+        # Ensure HTTPS for security
+        poster_url = poster_url.replace('http://', 'https://')
+
     # Build the movie info dictionary
     movie_info = {
         'title': api_data.get('Title', 'Unknown'),
@@ -122,23 +133,24 @@ def extract_movie_info(api_data: Dict[str, Any]) -> Dict[str, Any]:
         'plot': api_data.get('Plot', 'N/A'),
         'genre': api_data.get('Genre', 'N/A'),
         'runtime': api_data.get('Runtime', 'N/A'),
-        'poster': api_data.get('Poster', 'N/A')
+        'poster': poster_url
     }
 
     return movie_info
 
 
-def get_movie_with_rating(title: str) -> Optional[Dict[str, Any]]:
+def get_movie_with_rating(title: str, year: str = None) -> Optional[Dict[str, Any]]:
     """
     Convenience function to get movie data with year, rating, and poster.
 
     Args:
         title (str): Movie title to search for
+        year (str): Optional year to get specific version
 
     Returns:
         Optional[Dict]: Dictionary with title, year, rating, and poster if found
     """
-    api_data = fetch_movie_data(title)
+    api_data = fetch_movie_data(title, year)
 
     if api_data:
         movie_info = extract_movie_info(api_data)

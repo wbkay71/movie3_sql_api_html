@@ -8,6 +8,8 @@ from movie_storage_sql import (
     delete_movie_from_storage,
     update_movie_in_storage
 )
+import requests
+from website_generator import generate_website
 
 # ---------- Constants ----------
 current_year = datetime.now().year
@@ -50,26 +52,36 @@ def list_movies():
         # Format year
         year_str = f"({info['year']})"
 
-        # Format ratings
-        omdb_rating = f"OMDb: {info['omdb_rating']:.1f}"
+        # Format OMDb rating (always in cyan/blue)
+        omdb_rating = f"\033[1;36mOMDb: {info['omdb_rating']:.1f}\033[0m"
 
         # Check if user has rated the movie
         if info['user_rating'] is not None:
-            user_rating = f"You: {info['user_rating']:.1f}"
-            rating_str = f"{omdb_rating} | {user_rating}"
-            # Highlight movies where user rating differs significantly from OMDb
-            if abs(info['user_rating'] - info['omdb_rating']) >= 2.0:
-                rating_color = "\033[1;35m"  # Magenta for big difference
+            # Calculate difference for color coding
+            diff = abs(info['user_rating'] - info['omdb_rating'])
+
+            # Ampel-System for user rating
+            if diff <= 0.5:
+                # Green - very close (≤ 0.5 difference)
+                user_color = "\033[1;32m"  # Bright green
+            elif diff <= 1.5:
+                # Yellow - somewhat different (0.5 - 1.5)
+                user_color = "\033[1;33m"  # Bright yellow
+            elif diff <= 2.5:
+                # Orange - quite different (1.5 - 2.5)
+                user_color = "\033[38;5;208m"  # Orange (256 color)
             else:
-                rating_color = "\033[1;33m"  # Yellow for normal
+                # Red - very different (> 2.5)
+                user_color = "\033[1;31m"  # Bright red
+
+            user_rating = f"{user_color}You: {info['user_rating']:.1f}\033[0m"
+            rating_str = f"{omdb_rating} | {user_rating}"
         else:
             rating_str = omdb_rating
-            rating_color = "\033[1;33m"  # Yellow
 
         # Print movie entry
         print(
-            f"Movie: \033[1;36m{padded_title}\033[0m {year_str:6} - "
-            f"{rating_color}{rating_str}\033[0m"
+            f"Movie: \033[1;36m{padded_title}\033[0m {year_str:6} - {rating_str}"
         )
 
 
@@ -100,12 +112,22 @@ def add_movie():
                 print(f"{i}. {movie.get('Title')} ({movie.get('Year')})")
 
             print("0. Cancel")
+            print("99. Search again with different title")
 
             # Let user select
             try:
                 choice = int(input(f"\n{COLOR_INPUT}Select a movie to add: {COLOR_RESET}"))
                 if choice == 0:
                     print_colored("Operation cancelled.", COLOR_MENU)
+                    return
+                elif choice == 99:
+                    # Let user try again
+                    print_colored("\nTips for better search results:", COLOR_MENU)
+                    print("  - Try the complete movie title (e.g., 'The French Connection')")
+                    print("  - For sequels, include the number (e.g., 'Godfather 2')")
+                    print("  - Check spelling carefully")
+                    print("  - Sometimes 'The' at the beginning helps")
+                    add_movie()  # Recursive call
                     return
                 elif 1 <= choice <= min(10, len(search_results)):
                     selected = search_results[choice - 1]
@@ -116,8 +138,9 @@ def add_movie():
                         print_colored(f"\nMovie '{selected_title}' already exists in your database!", COLOR_ERROR)
                         return
 
-                    # Fetch full data for selected movie
-                    api_data = get_movie_with_rating(selected_title)
+                    # Fetch full data for selected movie WITH YEAR
+                    selected_year = selected.get('Year')
+                    api_data = get_movie_with_rating(selected_title, selected_year)
                     if api_data:
                         # Show movie details before adding
                         print_colored(f"\nAdding: {api_data['title']}", COLOR_TITLE)
@@ -162,9 +185,19 @@ def add_movie():
                 COLOR_ERROR
             )
             print_colored(
-                "Please check the spelling or try a different search term.",
-                COLOR_ERROR
+                "Tips for better search results:",
+                COLOR_MENU
             )
+            print("  - Try the complete movie title")
+            print("  - For sequels, include the number (e.g., 'Godfather 2')")
+            print("  - Check spelling")
+            print("  - Try without 'The' at the beginning")
+
+            # Offer to search again
+            retry = input(f"\n{COLOR_INPUT}Try another search? (y/n): {COLOR_RESET}").lower()
+            if retry == 'y':
+                add_movie()  # Recursive call
+                return
 
     except requests.exceptions.ConnectionError:
         print_colored(
@@ -497,8 +530,10 @@ def movie_database():
         print("7. Search movie")
         print("8. Movies sorted by rating")
         print("9. Movies sorted by year")
+        print("G. Generate website")  # New option!
 
-        choice = input(f"{COLOR_INPUT}Enter choice (0-9): {COLOR_RESET}")
+        choice = input(f"{COLOR_INPUT}Enter choice (0-9 or G): {COLOR_RESET}").strip().upper()
+
         if choice == "1":
             list_movies()
         elif choice == "2":
@@ -517,15 +552,17 @@ def movie_database():
             sort_movies_by_rating()
         elif choice == "9":
             sort_movies_by_year()
+        elif choice == "G":
+            generate_website()
+            input(f"\n{COLOR_INPUT}Press Enter to continue...{COLOR_RESET}")
         elif choice == "0":
             print_colored("Exiting program. Goodbye! \U0001F44B", COLOR_INPUT)
             break
         else:
             print_colored(
-                "Invalid input. Please enter a number between 0 and 9.",
+                "Invalid input. Please enter a number between 0-9 or G.",
                 COLOR_ERROR
             )
-
 
 # ---------- Entry Point ----------
 if __name__ == "__main__":
