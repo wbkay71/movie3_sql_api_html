@@ -1,6 +1,7 @@
 import random
 import statistics
 from datetime import datetime
+from movie_api import get_movie_with_rating, search_movies
 from movie_storage_sql import (
     get_movies,
     add_movie_to_storage,
@@ -46,7 +47,7 @@ def list_movies():
 
 
 def add_movie():
-    """Add a new movie after validating user input."""
+    """Add a new movie with option to fetch data from API."""
     clear_screen()
     movies = get_movies()
 
@@ -60,6 +61,65 @@ def add_movie():
         else:
             break
 
+    # Ask if user wants to fetch data from API
+    print_colored("\nFetch movie data from internet?", COLOR_MENU)
+    api_choice = input(f"{COLOR_INPUT}(y/n): {COLOR_RESET}").lower()
+
+    if api_choice == 'y':
+        print_colored("Searching for movie data...", COLOR_MENU)
+
+        # First try exact match
+        api_data = get_movie_with_rating(title)
+
+        if api_data:
+            # Show found data
+            print_colored(f"\nFound: {api_data['title']}", COLOR_TITLE)
+            print(f"Year: {api_data['year']}")
+            print(f"IMDb Rating: {api_data['rating']}/10")
+
+            # Ask for confirmation
+            use_data = input(f"\n{COLOR_INPUT}Use this data? (y/n): {COLOR_RESET}").lower()
+
+            if use_data == 'y':
+                add_movie_to_storage(api_data['title'], api_data['year'], api_data['rating'])
+                print_colored(
+                    f"Added '{api_data['title']}' ({api_data['year']}) "
+                    f"with rating {api_data['rating']:.1f}",
+                    COLOR_INPUT
+                )
+                return
+        else:
+            # Try searching if exact match failed
+            print_colored("\nExact match not found. Searching...", COLOR_MENU)
+            search_results = search_movies(title)
+
+            if search_results:
+                print_colored("\nDid you mean one of these?", COLOR_MENU)
+                for i, movie in enumerate(search_results[:5], 1):
+                    print(f"{i}. {movie.get('Title')} ({movie.get('Year')})")
+
+                try:
+                    choice = int(input(f"\n{COLOR_INPUT}Select number (0 to enter manually): {COLOR_RESET}"))
+                    if 1 <= choice <= len(search_results[:5]):
+                        selected = search_results[choice - 1]
+                        selected_title = selected.get('Title')
+
+                        # Fetch full data for selected movie
+                        api_data = get_movie_with_rating(selected_title)
+                        if api_data:
+                            add_movie_to_storage(api_data['title'], api_data['year'], api_data['rating'])
+                            print_colored(
+                                f"Added '{api_data['title']}' ({api_data['year']}) "
+                                f"with rating {api_data['rating']:.1f}",
+                                COLOR_INPUT
+                            )
+                            return
+                except ValueError:
+                    pass
+
+            print_colored("No suitable match found. Please enter data manually.", COLOR_ERROR)
+
+    # Manual entry (original code)
     while True:
         try:
             msg = f"{COLOR_INPUT}Enter release year (1880–{current_year}): {COLOR_RESET}"
